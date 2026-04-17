@@ -1,0 +1,353 @@
+/* ===== RESET & BASE ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #0f0f1a;
+  color: #e0e0e0;
+  min-height: 100vh;
+}
+
+/* ===== HEADER ===== */
+header {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  padding: 24px 40px;
+  border-bottom: 2px solid #00d4ff33;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #00d4ff;
+  letter-spacing: 1px;
+}
+
+.tagline {
+  font-size: 0.95rem;
+  color: #888;
+  font-style: italic;
+}
+
+/* ===== MAIN LAYOUT ===== */
+main {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* ===== CARDS ===== */
+.card {
+  background: #1a1a2e;
+  border: 1px solid #00d4ff22;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 4px 24px #00d4ff11;
+  transition: box-shadow 0.3s;
+}
+
+.card:hover {
+  box-shadow: 0 6px 32px #00d4ff22;
+}
+
+.card h2 {
+  font-size: 1.2rem;
+  color: #00d4ff;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #00d4ff22;
+  padding-bottom: 10px;
+}
+
+/* ===== TEXTAREA ===== */
+textarea {
+  width: 100%;
+  height: 160px;
+  background: #0f0f1a;
+  border: 1px solid #00d4ff33;
+  border-radius: 10px;
+  color: #e0e0e0;
+  padding: 14px;
+  font-size: 0.95rem;
+  resize: vertical;
+  outline: none;
+  transition: border 0.3s;
+}
+
+textarea:focus {
+  border-color: #00d4ff;
+}
+
+/* ===== BUTTONS ===== */
+button {
+  margin-top: 14px;
+  padding: 12px 28px;
+  background: linear-gradient(135deg, #00d4ff, #0077ff);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(0px);
+}
+
+/* ===== FILE INPUT ===== */
+input[type="file"] {
+  display: block;
+  margin-bottom: 10px;
+  color: #aaa;
+  font-size: 0.95rem;
+}
+
+/* ===== KEYWORDS BOX ===== */
+.keywords-box {
+  margin-top: 16px;
+  padding: 14px;
+  background: #0f0f1a;
+  border-radius: 10px;
+  border: 1px solid #00d4ff22;
+}
+
+.keywords-box h4 {
+  color: #00d4ff;
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+}
+
+.keyword-tag {
+  display: inline-block;
+  background: #00d4ff22;
+  color: #00d4ff;
+  border: 1px solid #00d4ff44;
+  border-radius: 20px;
+  padding: 4px 12px;
+  margin: 4px;
+  font-size: 0.82rem;
+}
+
+/* ===== BIAS BOX ===== */
+.bias-box {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 10px;
+  border-left: 4px solid #ff6b6b;
+  background: #ff6b6b11;
+}
+
+.bias-box h4 {
+  color: #ff6b6b;
+  margin-bottom: 8px;
+}
+
+.bias-box p {
+  font-size: 0.88rem;
+  color: #ccc;
+  line-height: 1.6;
+}
+
+.bias-clean {
+  border-left: 4px solid #00ff88;
+  background: #00ff8811;
+}
+
+.bias-clean h4 {
+  color: #00ff88;
+}
+
+/* ===== STATUS BOX ===== */
+.status-box {
+  margin-top: 14px;
+  padding: 12px 16px;
+  background: #0f0f1a;
+  border-radius: 8px;
+  border: 1px solid #00d4ff22;
+  font-size: 0.9rem;
+  color: #aaa;
+}
+
+/* ===== RANKING CARDS ===== */
+.candidate-card {
+  background: #0f0f1a;
+  border: 1px solid #00d4ff22;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.candidate-card .rank-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: linear-gradient(135deg, #00d4ff, #0077ff);
+  color: white;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.rank-1 { border-left: 4px solid gold; }
+.rank-2 { border-left: 4px solid silver; }
+.rank-3 { border-left: 4px solid #cd7f32; }
+
+.candidate-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 6px;
+}
+
+.score-bar-container {
+  background: #1a1a2e;
+  border-radius: 20px;
+  height: 10px;
+  margin: 10px 0;
+  overflow: hidden;
+}
+
+.score-bar {
+  height: 100%;
+  border-radius: 20px;
+  background: linear-gradient(90deg, #00d4ff, #0077ff);
+  transition: width 1s ease;
+}
+
+.score-label {
+  font-size: 0.9rem;
+  color: #00d4ff;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+/* ===== SKILL TAGS ===== */
+.skills-section {
+  margin-top: 12px;
+}
+
+.skills-section h5 {
+  font-size: 0.85rem;
+  color: #888;
+  margin-bottom: 6px;
+}
+
+.skill-match {
+  display: inline-block;
+  background: #00ff8822;
+  color: #00ff88;
+  border: 1px solid #00ff8844;
+  border-radius: 20px;
+  padding: 3px 10px;
+  margin: 3px;
+  font-size: 0.8rem;
+}
+
+.skill-missing {
+  display: inline-block;
+  background: #ff6b6b22;
+  color: #ff6b6b;
+  border: 1px solid #ff6b6b44;
+  border-radius: 20px;
+  padding: 3px 10px;
+  margin: 3px;
+  font-size: 0.8rem;
+}
+
+/* ===== EXPLAINABILITY BOX ===== */
+.explain-box {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #1a1a2e;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #aaa;
+  line-height: 1.6;
+  border-left: 3px solid #00d4ff44;
+}
+
+/* ===== INTERVIEW QUESTIONS ===== */
+.interview-card {
+  background: #0f0f1a;
+  border: 1px solid #00d4ff22;
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 14px;
+}
+
+.interview-card h4 {
+  color: #00d4ff;
+  margin-bottom: 10px;
+  font-size: 1rem;
+}
+
+.interview-card ol {
+  padding-left: 18px;
+}
+
+.interview-card ol li {
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  color: #ccc;
+  line-height: 1.5;
+}
+
+/* ===== HIDDEN UTILITY ===== */
+.hidden {
+  display: none !important;
+}
+
+/* ===== FOOTER ===== */
+footer {
+  text-align: center;
+  padding: 24px;
+  color: #444;
+  font-size: 0.85rem;
+  border-top: 1px solid #00d4ff11;
+  margin-top: 40px;
+}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0f0f1a;
+}
+::-webkit-scrollbar-thumb {
+  background: #00d4ff44;
+  border-radius: 3px;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 600px) {
+  header {
+    flex-direction: column;
+    gap: 6px;
+    text-align: center;
+  }
+  main {
+    padding: 0 12px;
+  }
+}
