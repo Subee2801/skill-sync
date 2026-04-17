@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkillSync | Screen Candidates</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <canvas id="particle-canvas"></canvas>
+    <nav class="navbar">
+        <div class="logo">⚡ SkillSync</div>
+        <div class="nav-links"><a href="/">Home</a><a href="/screen">Screen</a><a href="/report">Report</a></div>
+    </nav>
+
+    <main class="container screen-layout">
+        <section class="glass-card chips-row">
+            <span class="chip" id="jobTitleChip">Role: -</span>
+            <span class="chip" id="minScoreChip">Min Score: 0%</span>
+            <span class="chip" id="boostChip">Boost: none</span>
+        </section>
+
+        <section class="glass-card upload-wrap">
+            <div class="search-row">
+                <input id="liveSearch" type="text" placeholder="Search by name, matched skills, missing skills">
+                <button id="rerankBtn" class="btn-primary">Boost & Re-rank</button>
+            </div>
+            <div id="dropZone" class="drop-zone">
+                <input id="resumeFiles" type="file" multiple accept=".pdf,.txt,.csv" hidden>
+                <p>Drag and drop PDF/TXT/CSV resumes here or <button id="browseBtn" class="link-btn">browse files</button></p>
+                <span id="fileCount" class="chip">0 files</span>
+                <span id="csvModeBadge" class="chip hidden">📊 CSV Mode — Bulk Resume Data</span>
+                <div id="fileBadges" class="file-badges"></div>
+            </div>
+            <button id="analyzeBtn" class="btn-primary">Analyze & Rank</button>
+
+            <div id="progressWrap" class="progress-wrap hidden">
+                <p id="progressStatus">Parsing resumes...</p>
+                <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+            </div>
+        </section>
+
+        <section class="glass-card summary-grid">
+            <div><h4>Total</h4><p id="totalCount">0</p></div>
+            <div><h4>Shortlisted</h4><p id="shortlistedCount">0</p></div>
+            <div><h4>Rejected</h4><p id="rejectedCount">0</p></div>
+        </section>
+
+        <section id="resultsGrid" class="results-grid"></section>
+        <button id="exportBtn" class="btn-primary">Export Shortlisted CSV</button>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        initParticles("particle-canvas");
+        initTiltCards();
+
+        const state = { files: [], results: [], filtered: [] };
+        const jobTitle = localStorage.getItem("jobTitle") || "Untitled Role";
+        const jobDescription = localStorage.getItem("jobDescription") || "";
+        const minScore = localStorage.getItem("minScore") || "50";
+        const boostKeywords = localStorage.getItem("boostKeywords") || "";
+
+        document.getElementById("jobTitleChip").textContent = `Role: ${jobTitle}`;
+        document.getElementById("minScoreChip").textContent = `Min Score: ${minScore}%`;
+        document.getElementById("boostChip").textContent = `Boost: ${boostKeywords || "none"}`;
+
+        const resumeInput = document.getElementById("resumeFiles");
+        const dropZone = document.getElementById("dropZone");
+
+        function refreshFiles() {
+            const badges = document.getElementById("fileBadges");
+            badges.innerHTML = "";
+            const hasCsv = state.files.some(file => file.name.toLowerCase().endsWith(".csv"));
+            state.files.forEach((file, idx) => {
+                const badge = document.createElement("span");
+                badge.className = "chip";
+                badge.innerHTML = `${file.name} <button data-idx="${idx}" class="remove-file">x</button>`;
+                badges.appendChild(badge);
+            });
+            document.querySelectorAll(".remove-file").forEach(btn => btn.onclick = () => {
+                state.files.splice(Number(btn.dataset.idx), 1);
+                refreshFiles();
+            });
+            document.getElementById("fileCount").textContent = `${state.files.length} files`;
+            document.getElementById("csvModeBadge").classList.toggle("hidden", !hasCsv);
+        }
+
+        document.getElementById("browseBtn").addEventListener("click", (e) => {
+            e.preventDefault();
+            resumeInput.click();
+        });
+        resumeInput.addEventListener("change", () => {
+            state.files.push(...Array.from(resumeInput.files));
+            refreshFiles();
+        });
+
+        dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.classList.add("dragging"); });
+        dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragging"));
+        dropZone.addEventListener("drop", (e) => {
+            e.preventDefault();
+            dropZone.classList.remove("dragging");
+            state.files.push(
+                ...Array.from(e.dataTransfer.files).filter(f => {
+                    const name = f.name.toLowerCase();
+                    return name.endsWith(".pdf") || name.endsWith(".txt") || name.endsWith(".csv");
+                })
+            );
+            refreshFiles();
+        });
+
+        function animateProgress() {
+            const fill = document.getElementById("progressFill");
+            const status = document.getElementById("progressStatus");
+            const states = ["Parsing resumes...", "Running AI model...", "Ranking candidates..."];
+            let step = 0;
+            fill.style.width = "0%";
+            return setInterval(() => {
+                step += 1;
+                fill.style.width = `${Math.min(step * 35, 100)}%`;
+                if (states[step - 1]) status.textContent = states[step - 1];
+            }, 700);
+        }
+
+        function rankClass(rank) {
+            if (rank === 1) return "rank-gold";
+            if (rank === 2) return "rank-silver";
+            if (rank === 3) return "rank-bronze";
+            return "";
+        }
+
+        function renderResults(list) {
+            const grid = document.getElementById("resultsGrid");
+            grid.innerHTML = "";
+            list.forEach((c, idx) => {
+                const qHtml = (c.interview_questions || []).map(q => `<li><b>${q.skill}:</b> ${q.question}</li>`).join("");
+                const card = document.createElement("article");
+                card.className = "flip-card tilt-card";
+                card.style.animationDelay = `${idx * 80}ms`;
+                card.innerHTML = `
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front glass-card candidate-card">
+                            <span class="rank-badge ${rankClass(c.rank)}">#${c.rank}</span>
+                            <h3>${c.name}</h3>
+                            <p>${c.email} | ${c.filename}</p>
+                            <div class="score-label"><span>AI Score</span><span>${c.ai_score}%</span></div>
+                            <div class="progress-bar"><div class="progress-fill" style="width:${c.ai_score}%"></div></div>
+                            <div class="score-label"><span>Keyword Score</span><span>${c.keyword_score}%</span></div>
+                            <div class="progress-bar"><div class="progress-fill blue-fill" style="width:${c.keyword_score}%"></div></div>
+                            <div>${(c.matched_skills||[]).map(s => `<span class="tag-matched">${s}</span>`).join("")}</div>
+                            <div>${(c.missing_skills||[]).map(s => `<span class="tag-missing">${s}</span>`).join("")}</div>
+                            <div class="card-actions">
+                                <button class="short-btn">Shortlist ✓</button>
+                                <button class="reject-btn">Reject ✗</button>
+                                <button class="btn-primary flip-btn">Questions</button>
+                            </div>
+                        </div>
+                        <div class="flip-card-back glass-card candidate-card">
+                            <h3>Interview Questions</h3>
+                            <ul>${qHtml || "<li>No questions available.</li>"}</ul>
+                            <button class="btn-primary back-btn">Flip Back</button>
+                        </div>
+                    </div>`;
+                grid.appendChild(card);
+            });
+
+            document.querySelectorAll(".flip-btn").forEach((btn, i) => btn.onclick = () => listCard(i).classList.add("flipped"));
+            document.querySelectorAll(".back-btn").forEach((btn, i) => btn.onclick = () => listCard(i).classList.remove("flipped"));
+            document.querySelectorAll(".short-btn").forEach((btn, i) => btn.onclick = () => {
+                list[i].status = "Shortlisted";
+                listCard(i).querySelector(".candidate-card").classList.add("shortlisted");
+                updateSummary();
+            });
+            document.querySelectorAll(".reject-btn").forEach((btn, i) => btn.onclick = () => {
+                list[i].status = "Rejected";
+                listCard(i).querySelector(".candidate-card").classList.add("rejected");
+                updateSummary();
+            });
+            state.results = list;
+            localStorage.setItem("lastResults", JSON.stringify(state.results));
+            updateSummary();
+            initTiltCards();
+        }
+
+        function listCard(index) { return document.querySelectorAll(".flip-card")[index]; }
+
+        function updateSummary() {
+            const total = state.results.length;
+            const short = state.results.filter(c => c.status === "Shortlisted").length;
+            const rej = state.results.filter(c => c.status === "Rejected").length;
+            animateCounter("totalCount", total);
+            animateCounter("shortlistedCount", short);
+            animateCounter("rejectedCount", rej);
+        }
+
+        document.getElementById("liveSearch").addEventListener("input", (e) => {
+            const q = e.target.value.toLowerCase();
+            state.filtered = state.results.filter(c =>
+                `${c.name} ${(c.matched_skills||[]).join(" ")} ${(c.missing_skills||[]).join(" ")}`.toLowerCase().includes(q)
+            );
+            renderResults(state.filtered);
+        });
+
+        async function runAnalysis(endpoint) {
+            if (!jobDescription.trim()) return alert("Missing job description. Go back to Home.");
+            if (!state.files.length) return alert("Upload at least one resume.");
+            const formData = new FormData();
+            formData.append("job_description", jobDescription);
+            formData.append("min_score", minScore);
+            formData.append("boost_keywords", localStorage.getItem("boostKeywords") || "");
+            state.files.forEach(f => formData.append("resumes[]", f));
+
+            document.getElementById("progressWrap").classList.remove("hidden");
+            const timer = animateProgress();
+            const res = await fetch(endpoint, { method: "POST", body: formData });
+            clearInterval(timer);
+            document.getElementById("progressFill").style.width = "100%";
+            const data = await res.json();
+            if (!res.ok) return alert(data.error || "Failed to analyze.");
+            renderResults(data);
+        }
+
+        document.getElementById("analyzeBtn").onclick = () => runAnalysis("/analyze");
+        document.getElementById("rerankBtn").onclick = () => runAnalysis("/reanalyze");
+
+        document.getElementById("exportBtn").onclick = async () => {
+            const shortlisted = state.results.filter(c => c.status === "Shortlisted");
+            const res = await fetch("/export", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ shortlisted })
+            });
+            if (!res.ok) return alert("Export failed.");
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "shortlisted_candidates.csv";
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+    </script>
+</body>
+</html>

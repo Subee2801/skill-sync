@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkillSync | Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <canvas id="particle-canvas"></canvas>
+    <nav class="navbar">
+        <div class="logo">⚡ SkillSync</div>
+        <div class="nav-links"><a href="/">Home</a><a href="/screen">Screen</a><a href="/report">Report</a></div>
+    </nav>
+
+    <main class="container">
+        <section id="emptyState" class="glass-card hidden">
+            <h2>No screening results yet</h2>
+            <p>Run candidate screening to unlock charts and insights.</p>
+            <a href="/screen" class="btn-primary inline-btn">Go to Screen</a>
+        </section>
+
+        <section id="reportContent" class="hidden">
+            <div class="stats-grid">
+                <article class="glass-card tilt-card"><h4>Total Screened</h4><p id="totalScreened">0</p></article>
+                <article class="glass-card tilt-card"><h4>Avg AI Score</h4><p id="avgScore">0</p></article>
+                <article class="glass-card tilt-card"><h4>Top Candidate</h4><p id="topCandidate">-</p></article>
+                <article class="glass-card tilt-card"><h4>Most Missing Skill</h4><p id="mostMissing">-</p></article>
+            </div>
+
+            <div class="charts-grid">
+                <section class="glass-card"><canvas id="scoreChart"></canvas></section>
+                <section class="glass-card"><canvas id="gapChart"></canvas></section>
+            </div>
+
+            <section class="glass-card">
+                <table id="reportTable">
+                    <thead>
+                        <tr>
+                            <th data-sort="rank">Rank</th>
+                            <th data-sort="name">Name</th>
+                            <th data-sort="ai_score">AI Score</th>
+                            <th data-sort="keyword_score">Keyword Score</th>
+                            <th data-sort="status">Status</th>
+                            <th>Download Questions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </section>
+        </section>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        initParticles("particle-canvas");
+        initTiltCards();
+
+        const results = JSON.parse(localStorage.getItem("lastResults") || "[]");
+        const emptyState = document.getElementById("emptyState");
+        const reportContent = document.getElementById("reportContent");
+
+        if (!results.length) {
+            emptyState.classList.remove("hidden");
+        } else {
+            reportContent.classList.remove("hidden");
+            const sorted = [...results].sort((a, b) => (a.rank || 999) - (b.rank || 999));
+            const avg = sorted.reduce((s, c) => s + Number(c.ai_score || 0), 0) / sorted.length;
+            const top = sorted[0] || {};
+            const missingCounts = {};
+            sorted.forEach(c => (c.missing_skills || []).forEach(s => missingCounts[s] = (missingCounts[s] || 0) + 1));
+            const missingSorted = Object.entries(missingCounts).sort((a, b) => b[1] - a[1]);
+
+            animateCounter("totalScreened", sorted.length);
+            document.getElementById("avgScore").textContent = `${avg.toFixed(2)}%`;
+            document.getElementById("topCandidate").textContent = top.name || "-";
+            document.getElementById("mostMissing").textContent = missingSorted[0]?.[0] || "-";
+
+            new Chart(document.getElementById("scoreChart"), {
+                type: "bar",
+                data: {
+                    labels: sorted.map(c => c.name || "Unknown"),
+                    datasets: [{ label: "AI Score", data: sorted.map(c => c.ai_score || 0), backgroundColor: "rgba(139,92,246,0.7)", borderColor: "rgba(59,130,246,1)", borderWidth: 1 }]
+                },
+                options: { responsive: true, animation: { duration: 1200 } }
+            });
+
+            new Chart(document.getElementById("gapChart"), {
+                type: "bar",
+                data: {
+                    labels: missingSorted.slice(0, 10).map(x => x[0]),
+                    datasets: [{ label: "Missing Count", data: missingSorted.slice(0, 10).map(x => x[1]), backgroundColor: "rgba(239,68,68,0.7)" }]
+                },
+                options: { indexAxis: "y", responsive: true, animation: { duration: 1200 } }
+            });
+
+            const tbody = document.querySelector("#reportTable tbody");
+            function renderTable(data) {
+                tbody.innerHTML = "";
+                data.forEach((c) => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>${c.rank || "-"}</td>
+                        <td>${c.name || "-"}</td>
+                        <td>${c.ai_score || 0}%</td>
+                        <td>${c.keyword_score || 0}%</td>
+                        <td><span class="chip">${c.status || "Pending"}</span></td>
+                        <td><button class="btn-primary q-btn">Download</button></td>
+                    `;
+                    tr.querySelector(".q-btn").onclick = () => {
+                        const lines = [`Interview Questions for ${c.name || "Candidate"}`, "--------------------------------"];
+                        (c.interview_questions || []).forEach(q => lines.push(`[${q.skill}] ${q.question}`));
+                        const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `${(c.name || "candidate").replace(/\s+/g, "_")}_questions.txt`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    };
+                    tbody.appendChild(tr);
+                });
+            }
+
+            renderTable(sorted);
+            document.querySelectorAll("#reportTable th[data-sort]").forEach(th => {
+                th.onclick = () => {
+                    const key = th.dataset.sort;
+                    sorted.sort((a, b) => String(a[key] || "").localeCompare(String(b[key] || ""), undefined, { numeric: true }));
+                    renderTable(sorted);
+                };
+            });
+        }
+    </script>
+</body>
+</html>
